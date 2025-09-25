@@ -1,0 +1,11 @@
+
+{
+    "placeholderImages": [
+        {
+            "id": "hero",
+            "description": "A modern hotel lobby with a welcoming reception desk.",
+            "imageUrl": "https://picsum.photos/seed/hero/1200/800",
+            "imageHint": "hotel lobby"
+        }
+    ]
+}
