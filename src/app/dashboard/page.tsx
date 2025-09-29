@@ -7,9 +7,9 @@ import { useAuth } from '@/hooks/use-auth';
 import { Skeleton } from '@/components/ui/skeleton';
 import { LoaderCircle } from 'lucide-react';
 import { useSearchParams } from 'next/navigation';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, Suspense } from 'react';
 
-export default function DashboardPage() {
+function DashboardContent() {
   const { user, userProfile, loading: authLoading } = useAuth();
   const { submissions, loading: submissionsLoading, error } = useSubmissions();
   const searchParams = useSearchParams();
@@ -95,5 +95,20 @@ export default function DashboardPage() {
         onSubmissionSelected={setSelectedSubmissionId}
       />
     </DashboardLayout>
+  );
+}
+
+export default function DashboardPage() {
+  return (
+    <Suspense fallback={
+      <div className="flex items-center justify-center min-h-screen bg-muted/40">
+        <div className="text-center space-y-4">
+          <LoaderCircle className="h-12 w-12 animate-spin mx-auto text-primary" />
+          <p className="text-muted-foreground">Loading dashboard...</p>
+        </div>
+      </div>
+    }>
+      <DashboardContent />
+    </Suspense>
   );
 }
