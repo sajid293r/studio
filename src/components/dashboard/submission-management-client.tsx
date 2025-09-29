@@ -16,9 +16,15 @@ import { subDays } from 'date-fns';
 
 interface SubmissionManagementClientProps {
   initialSubmissions: Submission[];
+  selectedSubmissionId?: string | null;
+  onSubmissionSelected?: (submissionId: string | null) => void;
 }
 
-export function SubmissionManagementClient({ initialSubmissions }: SubmissionManagementClientProps) {
+export function SubmissionManagementClient({ 
+  initialSubmissions, 
+  selectedSubmissionId, 
+  onSubmissionSelected 
+}: SubmissionManagementClientProps) {
   const { user, loading } = useAuth();
   const { toast } = useToast();
   const { 
@@ -29,6 +35,22 @@ export function SubmissionManagementClient({ initialSubmissions }: SubmissionMan
     refetch 
   } = useSubmissions();
   const [selectedSubmissions, setSelectedSubmissions] = React.useState<Submission[]>([]);
+  const [autoOpenSubmissionId, setAutoOpenSubmissionId] = React.useState<string | null>(null);
+
+  // Handle auto-opening submission from email link
+  React.useEffect(() => {
+    if (selectedSubmissionId && submissions.length > 0) {
+      const submission = submissions.find(s => s.id === selectedSubmissionId);
+      if (submission) {
+        setAutoOpenSubmissionId(selectedSubmissionId);
+        // Clear the selected submission after a short delay
+        setTimeout(() => {
+          setAutoOpenSubmissionId(null);
+          onSubmissionSelected?.(null);
+        }, 100);
+      }
+    }
+  }, [selectedSubmissionId, submissions, onSubmissionSelected]);
 
   const handleAddSubmission = async (newSubmission: Omit<Submission, 'id'>) => {
     try {
@@ -48,12 +70,15 @@ export function SubmissionManagementClient({ initialSubmissions }: SubmissionMan
 
   const handleUpdateSubmission = async (updatedSubmission: Submission) => {
     try {
+      console.log('Updating submission in database:', updatedSubmission.id);
       await updateSubmission(updatedSubmission.id, updatedSubmission);
+      console.log('Submission updated successfully in database');
       toast({
         title: "Submission Updated",
         description: "Submission has been updated successfully.",
       });
     } catch (error) {
+      console.error('Failed to update submission in database:', error);
       toast({
         variant: "destructive",
         title: "Error",
@@ -130,8 +155,12 @@ export function SubmissionManagementClient({ initialSubmissions }: SubmissionMan
   };
 
   const submissionColumns = React.useMemo(
-    () => columns({ onUpdate: handleUpdateSubmission, onDelete: (id) => handleDeleteSubmissions([id]) }), 
-    []
+    () => columns({ 
+      onUpdate: handleUpdateSubmission, 
+      onDelete: (id) => handleDeleteSubmissions([id]),
+      autoOpenSubmissionId: autoOpenSubmissionId
+    }), 
+    [autoOpenSubmissionId]
   );
 
   if (loading || !user) {

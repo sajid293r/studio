@@ -214,6 +214,7 @@ export default function PropertiesPage() {
     router.push(`/pricing?propertyId=${property.id}&propertyName=${encodeURIComponent(property.name)}`);
   };
 
+
   const getFormattedDate = (date: any): string => {
     if (!date) return '';
     

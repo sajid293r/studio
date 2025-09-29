@@ -1,11 +1,14 @@
 
+"use client";
+
 import * as React from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { ShieldCheck, UploadCloud, BarChart, CheckCircle, LogIn, Rocket, Bell, Link2, Fingerprint, Camera } from "lucide-react";
+import { ShieldCheck, UploadCloud, BarChart, CheckCircle, LogIn, Rocket, Bell, Link2, Fingerprint, Camera, User } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { placeHolderImages } from '@/lib/placeholder-images';
+import { useAuth } from "@/hooks/use-auth";
 
 const features = [
   {
@@ -55,6 +58,7 @@ const roadmapFeatures = [
 
 export default function LandingPage() {
   const heroImage = placeHolderImages.find(p => p.id === 'hero');
+  const { user, userProfile, loading } = useAuth();
 
   return (
     <div className="flex flex-col min-h-screen">
@@ -80,13 +84,23 @@ export default function LandingPage() {
               <span className="absolute -bottom-1 left-0 w-0 h-0.5 bg-primary transition-all duration-200 group-hover:w-full"></span>
              </Link>
           </nav>
-          <Button asChild className="transition-all duration-200 hover:shadow-lg" size="sm">
-            <Link href="/login">
-                <LogIn className="mr-2 h-4 w-4" />
-                <span className="hidden sm:inline">Login / Sign Up</span>
-                <span className="sm:hidden">Login</span>
-            </Link>
-          </Button>
+          {user && userProfile ? (
+            <Button asChild className="transition-all duration-200 hover:shadow-lg" size="sm">
+              <Link href="/dashboard">
+                <User className="mr-2 h-4 w-4" />
+                <span className="hidden sm:inline">Dashboard</span>
+                <span className="sm:hidden">Dashboard</span>
+              </Link>
+            </Button>
+          ) : (
+            <Button asChild className="transition-all duration-200 hover:shadow-lg" size="sm">
+              <Link href="/login">
+                  <LogIn className="mr-2 h-4 w-4" />
+                  <span className="hidden sm:inline">Login / Sign Up</span>
+                  <span className="sm:hidden">Login</span>
+              </Link>
+            </Button>
+          )}
         </div>
       </header>
 
@@ -182,8 +196,22 @@ export default function LandingPage() {
                               <span className="text-sm">Email Support</span>
                             </li>
                         </ul>
-                        <Button className="mt-8 w-full h-12 font-semibold transition-all duration-200 hover:shadow-lg" size="lg" asChild>
-                          <Link href="/pricing">Choose Plan</Link>
+                        <Button 
+                          className="mt-8 w-full h-12 font-semibold transition-all duration-200 hover:shadow-lg" 
+                          size="lg" 
+                          asChild
+                          disabled={!user}
+                        >
+                          <Link href="/pricing">
+                            {!user ? (
+                              <>
+                                <LogIn className="mr-2 h-4 w-4" />
+                                Login to Choose Plan
+                              </>
+                            ) : (
+                              'Choose Plan'
+                            )}
+                          </Link>
                         </Button>
                     </Card>
                     <Card className="flex flex-col p-6 sm:p-8 border-2 border-primary shadow-elevated relative overflow-hidden animate-slide-up" style={{animationDelay: '200ms'}}>
@@ -215,8 +243,22 @@ export default function LandingPage() {
                               <span className="text-sm">Early access to new features</span>
                             </li>
                         </ul>
-                        <Button className="mt-8 w-full h-12 font-semibold transition-all duration-200 hover:shadow-lg" size="lg" asChild>
-                          <Link href="/pricing">Choose Plan</Link>
+                        <Button 
+                          className="mt-8 w-full h-12 font-semibold transition-all duration-200 hover:shadow-lg" 
+                          size="lg" 
+                          asChild
+                          disabled={!user}
+                        >
+                          <Link href="/pricing">
+                            {!user ? (
+                              <>
+                                <LogIn className="mr-2 h-4 w-4" />
+                                Login to Choose Plan
+                              </>
+                            ) : (
+                              'Choose Plan'
+                            )}
+                          </Link>
                         </Button>
                     </Card>
                 </div>

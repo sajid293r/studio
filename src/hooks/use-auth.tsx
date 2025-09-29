@@ -167,6 +167,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     const isPublicPage = publicPaths.some(p => pathname.startsWith(p)) || pathname === '/';
     const isAuthPage = pathname === '/login';
     const isSubmissionPage = pathname.startsWith('/submission');
+    const isPricingPage = pathname === '/pricing';
 
     console.log('Redirect check:', { 
       loading, 
@@ -175,12 +176,13 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       pathname, 
       isPublicPage, 
       isAuthPage, 
-      isSubmissionPage 
+      isSubmissionPage,
+      isPricingPage
     });
 
     if (user && userProfile) {
       // User is authenticated and profile is loaded
-      if (isAuthPage) {
+      if (isAuthPage || (isPublicPage && !isPricingPage)) {
         console.log('Redirecting authenticated user to dashboard');
         router.replace('/dashboard');
       }

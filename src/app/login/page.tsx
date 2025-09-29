@@ -66,7 +66,20 @@ export default function LoginPage() {
 
   const onSubmit = async (values: z.infer<typeof emailSchema>) => {
     try {
-      await signInWithEmailLink(values.email);
+      // Use custom email service instead of Firebase's default
+      const response = await fetch('/api/auth/send-custom-email-link', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ email: values.email }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to send magic link');
+      }
+
       setIsEmailSent(true);
       toast({
         title: "Magic Link Sent!",

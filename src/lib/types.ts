@@ -1,11 +1,12 @@
 import { z } from 'zod';
 
-export type SubmissionStatus = 'Pending' | 'Approved' | 'Rejected' | 'Awaiting Guest';
+export type SubmissionStatus = 'Pending' | 'Approved' | 'Rejected' | 'Awaiting Guest' | 'Partially Approved';
 
 // Represents an individual guest whose ID is uploaded.
 export type Guest = {
   id: string;
   guestNumber: number; // e.g., Guest 1, Guest 2
+  guestEmail?: string; // Individual guest email
   idDocumentUrl?: string;
   idDocumentAiHint?: string;
   status: 'Pending' | 'Approved' | 'Rejected'; // Status of this specific ID
@@ -21,6 +22,7 @@ export type Submission = {
   propertyName: string; // The name of the property
   bookingId: string;
   mainGuestName: string;
+  mainGuestEmail: string;
   mainGuestPhoneNumber: string;
   numberOfGuests: number;
   checkInDate: Date;

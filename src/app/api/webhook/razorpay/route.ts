@@ -131,12 +131,6 @@ export async function POST(req: Request) {
       const order = await razorpayInstance.orders.fetch(payment.order_id);
       const { notes } = order;
 
-      console.log('Processing payment.captured webhook:', {
-        payment_id: payment.id,
-        order_id: payment.order_id,
-        amount: payment.amount,
-        notes: notes
-      });
 
       const {
         planName,
@@ -201,7 +195,6 @@ export async function POST(req: Request) {
         // Activate existing property
         propertyId = existingPropertyId;
         propertyRef = doc(db, 'properties', propertyId);
-        console.log('Activating existing property:', propertyId);
       } else {
         // Create new property
         const newPropertyData = {
@@ -212,7 +205,6 @@ export async function POST(req: Request) {
         const newProperty = await addProperty(userId, newPropertyData, null);
         propertyId = newProperty.id;
         propertyRef = doc(db, 'properties', propertyId);
-        console.log('Created new property:', propertyId);
       }
 
       const updatedPropertyData = {
@@ -223,7 +215,6 @@ export async function POST(req: Request) {
       };
       
       await updateDoc(propertyRef, updatedPropertyData);
-      console.log('Property activated:', propertyId);
 
       // Update the property in user profile as well
       const userRef = doc(db, 'users', userId);
@@ -243,7 +234,6 @@ export async function POST(req: Request) {
           updatedAt: new Date()
         });
         
-        console.log('Updated user profile with activated property');
       }
 
       // 3. Prepare and "Send" Invoice

@@ -2,7 +2,7 @@
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
-import { Check, LoaderCircle, AlertTriangle, User, Mail, Building, Phone, ShieldCheck } from "lucide-react";
+import { Check, LoaderCircle, AlertTriangle, User, Mail, Building, Phone, ShieldCheck, Lock } from "lucide-react";
 import { useSearchParams, useRouter } from "next/navigation";
 import React, { useEffect, Suspense } from "react";
 import { useToast } from "@/hooks/use-toast";
@@ -16,6 +16,7 @@ import { Input } from "@/components/ui/input";
 import Script from "next/script";
 import Link from "next/link";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useAuth } from "@/hooks/use-auth";
 
 
 declare global {
@@ -68,6 +69,7 @@ function PricingClient() {
     const router = useRouter();
     const searchParams = useSearchParams();
     const { toast } = useToast();
+    const { user, userProfile, loading: authLoading } = useAuth();
     const [selectedPlan, setSelectedPlan] = React.useState<(typeof plans)[0] | null>(null);
     const [isLoading, setIsLoading] = React.useState(false);
     const [paymentSuccess, setPaymentSuccess] = React.useState(false);
@@ -120,6 +122,18 @@ function PricingClient() {
 
     const onSubmit = async (values: z.infer<typeof checkoutSchema>) => {
         if (!selectedPlan) return;
+        
+        // Check if user is authenticated
+        if (!user || !userProfile) {
+            toast({
+                variant: 'destructive',
+                title: 'Authentication Required',
+                description: 'Please log in to proceed with payment.',
+            });
+            router.push('/login');
+            return;
+        }
+        
         setIsLoading(true);
 
         try {
@@ -200,6 +214,15 @@ function PricingClient() {
         }
     };
     
+    // Show loading state while checking authentication
+    if (authLoading) {
+        return (
+            <div className="min-h-screen flex items-center justify-center">
+                <LoaderCircle className="h-8 w-8 animate-spin" />
+            </div>
+        );
+    }
+
     if (paymentSuccess) {
          return (
             <div className="flex min-h-screen w-full flex-col items-center justify-center bg-muted/40 p-4">
@@ -224,7 +247,7 @@ function PricingClient() {
                     </CardContent>
                     <CardFooter className="flex-col gap-4">
                         <Button asChild className="w-full h-12 font-semibold transition-all duration-200 hover:shadow-lg">
-                            <Link href="/login">Set Your Password & Login</Link>
+                            <Link href="/properties">Go to Properties</Link>
                         </Button>
                         <div className="text-center">
                             <p className="text-sm text-muted-foreground mb-2">
@@ -233,7 +256,7 @@ function PricingClient() {
                             <div className="text-xs text-muted-foreground space-y-1">
                                 <p>1. Check your email for login instructions</p>
                                 <p>2. Use "Forgot Password" to set your password</p>
-                                <p>3. Access your dashboard to manage your property</p>
+                                <p>3. Go to Properties to activate your subscription</p>
                             </div>
                         </div>
                     </CardFooter>
@@ -383,6 +406,20 @@ function PricingClient() {
                     <h1 className="text-3xl sm:text-4xl font-bold font-headline">Activate Your Property</h1>
                     <p className="text-muted-foreground mt-2 text-base sm:text-lg">Select a subscription plan to get started with Stay Verify.</p>
                 </div>
+                
+                {!user && (
+                    <Alert className="max-w-4xl w-full mb-8">
+                        <Lock className="h-4 w-4" />
+                        <AlertTitle>Login Required</AlertTitle>
+                        <AlertDescription>
+                            Please log in to your account to select a subscription plan and make payments.
+                            <Button asChild variant="link" className="p-0 h-auto ml-2">
+                                <Link href="/login">Login here</Link>
+                            </Button>
+                        </AlertDescription>
+                    </Alert>
+                )}
+                
                  {!process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID && (
                      <Alert variant="destructive" className="max-w-4xl w-full mb-8">
                         <AlertTriangle className="h-4 w-4" />
@@ -439,19 +476,28 @@ function PricingClient() {
                                         className="w-full h-12 font-semibold transition-all duration-200 hover:shadow-lg" 
                                         size="lg" 
                                         onClick={() => handleSelectPlan(plan)}
-                                        disabled={!process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID}
+                                        disabled={!user || !process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID}
                                         variant={plan.name === '12 Months' ? 'default' : 'outline'}
                                     >
-                                        Choose Plan
+                                        {!user ? (
+                                            <>
+                                                <Lock className="mr-2 h-4 w-4" />
+                                                Login Required
+                                            </>
+                                        ) : (
+                                            'Choose Plan'
+                                        )}
                                     </Button>
                                 </CardFooter>
                             </Card>
                         )
                     })}
                 </div>
-                 <Button variant="link" className="mt-8" asChild>
-                    <Link href="/login">Already have an account? Sign In</Link>
-                </Button>
+                 {!user && (
+                    <Button variant="link" className="mt-8" asChild>
+                        <Link href="/login">Already have an account? Sign In</Link>
+                    </Button>
+                )}
                 </>
             )}
         </div>

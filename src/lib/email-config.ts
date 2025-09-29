@@ -20,9 +20,9 @@ export const createTransporter = () => {
 
 // Email templates configuration
 export const emailTemplates = {
-  from: process.env.SMTP_FROM || 'Stay Verify <marrideveloper@gmail.com>',
-  replyTo: process.env.SMTP_REPLY_TO || 'marrideveloper@gmail.com',
-  supportEmail: process.env.SMTP_SUPPORT || 'marrideveloper@gmail.com', // Test email
+  from: process.env.SMTP_FROM || 'Stay Verify <stayverifed@gmail.com>',
+  replyTo: process.env.SMTP_REPLY_TO || 'stayverifed@gmail.com',
+  supportEmail: process.env.SMTP_SUPPORT || 'stayverifed@gmail.com',
 };
 
 // Rate limiting configuration

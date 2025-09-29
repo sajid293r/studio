@@ -6,10 +6,26 @@ import { useSubmissions } from '@/hooks/use-submissions';
 import { useAuth } from '@/hooks/use-auth';
 import { Skeleton } from '@/components/ui/skeleton';
 import { LoaderCircle } from 'lucide-react';
+import { useSearchParams } from 'next/navigation';
+import { useEffect, useState } from 'react';
 
 export default function DashboardPage() {
   const { user, userProfile, loading: authLoading } = useAuth();
   const { submissions, loading: submissionsLoading, error } = useSubmissions();
+  const searchParams = useSearchParams();
+  const [selectedSubmissionId, setSelectedSubmissionId] = useState<string | null>(null);
+
+  // Handle submission parameter from email link
+  useEffect(() => {
+    const submissionId = searchParams.get('submission');
+    if (submissionId) {
+      setSelectedSubmissionId(submissionId);
+      // Remove the parameter from URL without page reload
+      const url = new URL(window.location.href);
+      url.searchParams.delete('submission');
+      window.history.replaceState({}, '', url.toString());
+    }
+  }, [searchParams]);
 
   // Show loading while auth is loading
   if (authLoading) {
@@ -73,7 +89,11 @@ export default function DashboardPage() {
       title="Dashboard"
       description="Manage your guest submissions and properties"
     >
-      <SubmissionManagementClient initialSubmissions={submissions} />
+      <SubmissionManagementClient 
+        initialSubmissions={submissions} 
+        selectedSubmissionId={selectedSubmissionId}
+        onSubmissionSelected={setSelectedSubmissionId}
+      />
     </DashboardLayout>
   );
 }

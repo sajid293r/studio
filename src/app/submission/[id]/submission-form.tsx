@@ -72,9 +72,23 @@ export function SubmissionForm({ submission: initialSubmission }: { submission: 
         throw new Error('Failed to submit data');
       }
 
+      // Send alert email to property owner
+      try {
+        await fetch('/api/submissions/alert', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ submissionId: submission.id }),
+        });
+      } catch (emailError) {
+        console.error('Failed to send alert email:', emailError);
+        // Don't fail the submission if email fails
+      }
+
       toast({
         title: "Submission Successful!",
-        description: "Your documents have been submitted successfully.",
+        description: "Your documents have been submitted successfully. The property owner has been notified.",
         className: 'bg-green-600 text-white'
       });
       
@@ -111,7 +125,7 @@ export function SubmissionForm({ submission: initialSubmission }: { submission: 
             </CardContent>
             <CardFooter className="flex justify-center">
                  <Button 
-                    onClick={() => router.push('/')} 
+                    onClick={() => window.location.href = '/'} 
                     className="px-8 py-3 font-medium transition-all duration-200 hover:shadow-lg"
                  >
                     Return to Dashboard (for demo)

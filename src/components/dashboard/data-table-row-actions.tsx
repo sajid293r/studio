@@ -47,6 +47,7 @@ interface DataTableRowActionsProps<TData> {
   row: Row<TData>;
   onUpdate: (submission: Submission) => void;
   onDelete: (submissionId: string) => void;
+  autoOpen?: boolean;
 }
 
 const WhatsAppIcon = (props: React.SVGProps<SVGSVGElement>) => (
@@ -54,10 +55,17 @@ const WhatsAppIcon = (props: React.SVGProps<SVGSVGElement>) => (
 )
 
 
-export function DataTableRowActions<TData>({ row, onUpdate, onDelete }: DataTableRowActionsProps<TData>) {
+export function DataTableRowActions<TData>({ row, onUpdate, onDelete, autoOpen }: DataTableRowActionsProps<TData>) {
   const submission = row.original as Submission;
   const [isVerifyOpen, setIsVerifyOpen] = React.useState(false);
   const { toast } = useToast();
+
+  // Auto-open verification dialog if autoOpen is true
+  React.useEffect(() => {
+    if (autoOpen) {
+      setIsVerifyOpen(true);
+    }
+  }, [autoOpen]);
 
   const handleUpdateGuestStatus = (guestId: string, status: 'Approved' | 'Rejected', summary?: string, issues?: string) => {
     const updatedGuests = submission.guests.map(g => 
@@ -66,18 +74,20 @@ export function DataTableRowActions<TData>({ row, onUpdate, onDelete }: DataTabl
 
     const allApproved = updatedGuests.every(g => g.status === 'Approved');
     const anyRejected = updatedGuests.some(g => g.status === 'Rejected');
+    const allProcessed = updatedGuests.every(g => g.status === 'Approved' || g.status === 'Rejected');
     
     let submissionStatus = submission.status;
     if (submissionStatus !== "Awaiting Guest") {
        if (allApproved) {
             submissionStatus = 'Approved';
-        } else if (anyRejected) {
-            submissionStatus = 'Rejected';
+        } else if (allProcessed && anyRejected) {
+            submissionStatus = 'Partially Approved'; // New status for mixed results
+        } else if (allProcessed && !anyRejected) {
+            submissionStatus = 'Approved';
         } else {
             submissionStatus = 'Pending';
         }
     }
-
 
     onUpdate({ ...submission, guests: updatedGuests, status: submissionStatus });
   };
@@ -169,7 +179,7 @@ export function DataTableRowActions<TData>({ row, onUpdate, onDelete }: DataTabl
                 {submission.guests.length > 0 ? (
                     <Accordion type="single" collapsible className="w-full" defaultValue={`item-${submission.guests[0]?.id}`}>
                         {submission.guests.map((guest) => (
-                            <GuestVerificationItem key={guest.id} guest={guest} onStatusUpdate={handleUpdateGuestStatus} />
+                            <GuestVerificationItem key={guest.id} guest={guest} submission={submission} onStatusUpdate={handleUpdateGuestStatus} />
                         ))}
                     </Accordion>
                 ): (
@@ -194,7 +204,11 @@ export function DataTableRowActions<TData>({ row, onUpdate, onDelete }: DataTabl
 }
 
 
-function GuestVerificationItem({ guest, onStatusUpdate }: { guest: Guest, onStatusUpdate: (guestId: string, status: 'Approved' | 'Rejected', summary?:string, issues?: string) => void}) {
+function GuestVerificationItem({ guest, submission, onStatusUpdate }: { 
+  guest: Guest; 
+  submission: Submission; 
+  onStatusUpdate: (guestId: string, status: 'Approved' | 'Rejected', summary?: string, issues?: string) => void;
+}) {
     const [isAiLoading, setIsAiLoading] = React.useState(false);
     const [aiSummary, setAiSummary] = React.useState(guest.verificationSummary);
     const [aiIssues, setAiIssues] = React.useState(guest.verificationIssues);
@@ -223,22 +237,59 @@ function GuestVerificationItem({ guest, onStatusUpdate }: { guest: Guest, onStat
         }
       };
 
-    const handleApprove = () => {
+    const handleApprove = async () => {
         onStatusUpdate(guest.id, 'Approved', aiSummary, aiIssues);
         toast({
             title: 'Guest Approved',
             description: `Guest ${guest.guestNumber} has been approved.`,
             className: 'bg-accent text-accent-foreground'
-        })
+        });
+        
+        // Send approval email
+        try {
+          await fetch('/api/submissions/send-status-email', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              submissionId: submission.id,
+              guestId: guest.id,
+              status: 'Approved',
+              guestEmail: guest.guestEmail || submission.mainGuestEmail,
+            }),
+          });
+        } catch (emailError) {
+          // Email sending failed silently
+        }
     }
     
-    const handleReject = () => {
+    const handleReject = async () => {
         onStatusUpdate(guest.id, 'Rejected', aiSummary, aiIssues);
-         toast({
+        toast({
             title: 'Guest Rejected',
             description: `Guest ${guest.guestNumber} has been rejected.`,
             variant: 'destructive'
-        })
+        });
+        
+        // Send rejection email
+        try {
+          await fetch('/api/submissions/send-status-email', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              submissionId: submission.id,
+              guestId: guest.id,
+              status: 'Rejected',
+              guestEmail: guest.guestEmail || submission.mainGuestEmail,
+              rejectionReason: aiIssues || 'ID verification failed',
+            }),
+          });
+        } catch (emailError) {
+          // Email sending failed silently
+        }
     }
 
     const statusVariant = {

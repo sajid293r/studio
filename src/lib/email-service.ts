@@ -8,6 +8,9 @@ import { EmailVerificationTemplate } from '../emails/email-verification-template
 import { WelcomeEmailTemplate } from '../emails/welcome-email-template';
 import { SubscriptionWelcomeTemplate } from '../emails/subscription-welcome-template';
 import { GuestSubmissionAlertTemplate } from '../emails/guest-submission-alert-template';
+import { MagicLinkTemplate } from '../emails/magic-link-template';
+import { GuestApprovalTemplate } from '../emails/guest-approval-template';
+import { GuestRejectionTemplate } from '../emails/guest-rejection-template';
 import nodemailer from 'nodemailer';
 
 // Create nodemailer transporter directly
@@ -122,6 +125,24 @@ export class EmailService {
     });
   }
 
+  // Send magic link for authentication
+  async sendMagicLink({
+    email,
+    name,
+    magicLink,
+  }: {
+    email: string;
+    name: string;
+    magicLink: string;
+  }) {
+    return this.sendEmail({
+      to: email,
+      subject: 'Your Magic Link - Stay Verify',
+      template: MagicLinkTemplate,
+      data: { name, magicLink },
+    });
+  }
+
   // Send welcome email after verification
   async sendWelcomeEmail({
     email,
@@ -177,6 +198,56 @@ export class EmailService {
       subject: `New Guest Submission - ${propertyName}`,
       template: GuestSubmissionAlertTemplate,
       data: { propertyName, guestName, bookingId, submissionUrl },
+    });
+  }
+
+  // Send guest approval email
+  async sendGuestApproval({
+    guestEmail,
+    guestName,
+    propertyName,
+    bookingId,
+    checkInDate,
+    checkOutDate,
+  }: {
+    guestEmail: string;
+    guestName: string;
+    propertyName: string;
+    bookingId: string;
+    checkInDate: string;
+    checkOutDate: string;
+  }) {
+    return this.sendEmail({
+      to: guestEmail,
+      subject: `✅ ID Verification Approved - ${propertyName}`,
+      template: GuestApprovalTemplate,
+      data: { guestName, propertyName, bookingId, checkInDate, checkOutDate },
+    });
+  }
+
+  // Send guest rejection email
+  async sendGuestRejection({
+    guestEmail,
+    guestName,
+    propertyName,
+    bookingId,
+    checkInDate,
+    checkOutDate,
+    rejectionReason,
+  }: {
+    guestEmail: string;
+    guestName: string;
+    propertyName: string;
+    bookingId: string;
+    checkInDate: string;
+    checkOutDate: string;
+    rejectionReason?: string;
+  }) {
+    return this.sendEmail({
+      to: guestEmail,
+      subject: `⚠️ ID Verification Issue - ${propertyName}`,
+      template: GuestRejectionTemplate,
+      data: { guestName, propertyName, bookingId, checkInDate, checkOutDate, rejectionReason },
     });
   }
 }

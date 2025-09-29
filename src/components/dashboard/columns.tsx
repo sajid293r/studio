@@ -13,9 +13,10 @@ import { format } from 'date-fns';
 type ColumnsProps = {
   onUpdate: (submission: Submission) => void;
   onDelete: (submissionId: string) => void;
+  autoOpenSubmissionId?: string | null;
 };
 
-export const columns = ({ onUpdate, onDelete }: ColumnsProps): ColumnDef<Submission>[] => [
+export const columns = ({ onUpdate, onDelete, autoOpenSubmissionId }: ColumnsProps): ColumnDef<Submission>[] => [
   {
     id: 'select',
     header: ({ table }) => (
@@ -76,11 +77,21 @@ export const columns = ({ onUpdate, onDelete }: ColumnsProps): ColumnDef<Submiss
         'Awaiting Guest': 'secondary',
         'Pending': 'secondary',
         'Approved': 'default',
+        'Partially Approved': 'secondary',
         'Rejected': 'destructive',
       }[status] as 'secondary' | 'default' | 'destructive';
 
       return (
-        <Badge variant={variant} className={variant === 'default' ? 'bg-accent text-accent-foreground' : ''}>
+        <Badge 
+          variant={variant} 
+          className={
+            variant === 'default' 
+              ? 'bg-accent text-accent-foreground' 
+              : status === 'Partially Approved'
+              ? 'bg-yellow-100 text-yellow-800 border-yellow-200'
+              : ''
+          }
+        >
           {status}
         </Badge>
       );
@@ -115,6 +126,6 @@ export const columns = ({ onUpdate, onDelete }: ColumnsProps): ColumnDef<Submiss
   },
   {
     id: 'actions',
-    cell: ({ row }) => <DataTableRowActions row={row} onUpdate={onUpdate} onDelete={onDelete} />,
+    cell: ({ row }) => <DataTableRowActions row={row} onUpdate={onUpdate} onDelete={onDelete} autoOpen={autoOpenSubmissionId === row.original.id} />,
   },
 ];

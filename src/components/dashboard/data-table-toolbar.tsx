@@ -15,6 +15,7 @@ import {
   Copy,
   XCircle,
   Building,
+  Mail,
 } from "lucide-react";
 import {
   Dialog,
@@ -56,8 +57,10 @@ const addSubmissionSchema = z
     propertyId: z.string({ required_error: "Please select a property."}),
     bookingId: z.string().min(1, { message: "Booking ID is required." }),
     mainGuestName: z.string().min(2, { message: "Name must be at least 2 characters." }),
+    mainGuestEmail: z.string().email({ message: "A valid email address is required." }),
     mainGuestPhoneNumber: z.string().min(10, { message: "A valid phone number is required." }),
     numberOfGuests: z.coerce.number().min(1, { message: "Must have at least 1 guest." }).max(10, { message: "Cannot exceed 10 guests." }),
+    guestEmails: z.array(z.string().email().optional()).optional(),
     checkInDate: z.date({ required_error: "A check-in date is required." }),
     checkOutDate: z.date({ required_error: "A check-out date is required." }),
     termsAndConditions: z.string().min(20, { message: "Terms & Conditions must be at least 20 characters." }),
@@ -110,6 +113,7 @@ export function DataTableToolbar<TData>({
         guests: Array.from({ length: values.numberOfGuests }, (_, i) => ({
           id: `G${i + 1}`,
           guestNumber: i + 1,
+          guestEmail: values.guestEmails?.[i] || values.mainGuestEmail, // Use individual email or fall back to main email
           status: "Pending",
         })),
       } as Omit<Submission, 'id'>;
@@ -261,14 +265,14 @@ export function DataTableToolbar<TData>({
                     />
                     <FormField
                       control={form.control}
-                      name="mainGuestPhoneNumber"
+                      name="mainGuestEmail"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel>Guest Phone</FormLabel>
+                          <FormLabel>Guest Email</FormLabel>
                           <FormControl>
                             <div className="relative">
-                              <Phone className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                              <Input placeholder="+1-555-123-4567" className="pl-8" {...field} />
+                              <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                              <Input placeholder="john@example.com" className="pl-8" {...field} />
                             </div>
                           </FormControl>
                           <FormMessage />
@@ -276,6 +280,22 @@ export function DataTableToolbar<TData>({
                       )}
                     />
                   </div>
+                  <FormField
+                    control={form.control}
+                    name="mainGuestPhoneNumber"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Guest Phone</FormLabel>
+                        <FormControl>
+                          <div className="relative">
+                            <Phone className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                            <Input placeholder="+1-555-123-4567" className="pl-8" {...field} />
+                          </div>
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
                   <FormField
                     control={form.control}
                     name="numberOfGuests"
@@ -292,6 +312,31 @@ export function DataTableToolbar<TData>({
                       </FormItem>
                     )}
                   />
+                  <div className="space-y-2">
+                    <FormLabel>Guest Email Addresses (Optional)</FormLabel>
+                    <p className="text-sm text-muted-foreground">
+                      Enter individual email addresses for each guest. If not provided, all notifications will go to the main guest email.
+                    </p>
+                    {Array.from({ length: form.watch('numberOfGuests') || 1 }, (_, i) => (
+                      <FormField
+                        key={i}
+                        control={form.control}
+                        name={`guestEmails.${i}`}
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel className="text-sm">Guest {i + 1} Email</FormLabel>
+                            <FormControl>
+                              <div className="relative">
+                                <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                                <Input placeholder={`guest${i + 1}@example.com`} className="pl-8" {...field} />
+                              </div>
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                    ))}
+                  </div>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <FormField
                       control={form.control}
