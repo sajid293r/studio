@@ -53,7 +53,7 @@ export const SubscriptionWelcomeTemplate = ({
           </Text>
           
           <Section style={buttonContainer}>
-            <Button style={button} href={`${process.env.NEXT_PUBLIC_APP_URL}/properties`}>
+            <Button style={button} href={`${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/properties`}>
               Manage Properties
             </Button>
           </Section>

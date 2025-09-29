@@ -12,9 +12,10 @@ import {
 
 interface WelcomeEmailProps {
   name: string;
+  email: string;
 }
 
-export const WelcomeEmailTemplate = ({ name }: WelcomeEmailProps) => (
+export const WelcomeEmailTemplate = ({ name, email }: WelcomeEmailProps) => (
   <Html>
     <Head />
     <Preview>Welcome to Stay Verify! Start managing your properties today</Preview>
@@ -34,7 +35,7 @@ export const WelcomeEmailTemplate = ({ name }: WelcomeEmailProps) => (
           </Text>
           
           <Section style={buttonContainer}>
-            <Button style={button} href={`${process.env.NEXT_PUBLIC_APP_URL}/dashboard`}>
+            <Button style={button} href={`${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/dashboard`}>
               Go to Dashboard
             </Button>
           </Section>

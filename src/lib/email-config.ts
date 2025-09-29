@@ -40,5 +40,5 @@ export const rateLimitConfig = {
 // Email verification configuration
 export const verificationConfig = {
   tokenExpiry: 24 * 60 * 60 * 1000, // 24 hours
-  baseUrl: process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:5000',
+  baseUrl: process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000',
 };

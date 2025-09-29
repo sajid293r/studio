@@ -13,6 +13,8 @@ import { useState, useEffect } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense } from "react";
+import { signInWithEmailAndPassword } from "firebase/auth";
+import { auth } from "@/lib/firebase";
 
 const setPasswordSchema = z.object({
   email: z.string().email('Please enter a valid email address'),
@@ -71,10 +73,26 @@ function SetPasswordForm() {
           className: 'bg-green-600 text-white'
         });
         
-        // Redirect to login after 3 seconds
-        setTimeout(() => {
-          router.push('/login');
-        }, 3000);
+        // Automatically sign in the user and redirect to dashboard
+        try {
+          await signInWithEmailAndPassword(auth, values.email, values.password);
+          toast({
+            title: "Welcome!",
+            description: "You have been automatically signed in.",
+            className: 'bg-green-600 text-white'
+          });
+          
+          // Redirect to dashboard after successful login
+          setTimeout(() => {
+            router.push('/dashboard');
+          }, 2000);
+        } catch (loginError) {
+          console.error('Auto login failed:', loginError);
+          // If auto login fails, redirect to login page
+          setTimeout(() => {
+            router.push('/login');
+          }, 2000);
+        }
       } else {
         toast({
           variant: 'destructive',
@@ -106,12 +124,12 @@ function SetPasswordForm() {
               Password Set Successfully!
             </CardTitle>
             <p className="text-muted-foreground">
-              Your account is now ready. Redirecting to login...
+              You have been automatically signed in. Redirecting to dashboard...
             </p>
           </CardHeader>
           <CardContent className="text-center">
             <Button asChild className="w-full">
-              <Link href="/login">Go to Login</Link>
+              <Link href="/dashboard">Go to Dashboard</Link>
             </Button>
           </CardContent>
         </Card>

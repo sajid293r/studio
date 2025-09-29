@@ -8,6 +8,8 @@ import { useState, useEffect, Suspense } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import { signInWithEmailAndPassword } from "firebase/auth";
+import { auth } from "@/lib/firebase";
 
 function VerifyEmailForm() {
   const searchParams = useSearchParams();
@@ -49,10 +51,45 @@ function VerifyEmailForm() {
             className: 'bg-green-600 text-white'
           });
           
-          // Redirect to set password page after 2 seconds
-          setTimeout(() => {
-            router.push(`/set-password?email=${encodeURIComponent(data.user.email)}`);
-          }, 2000);
+          // Automatically sign in the user after verification
+          if (data.password) {
+            try {
+              await signInWithEmailAndPassword(auth, data.user.email, data.password);
+              toast({
+                title: "Welcome!",
+                description: "You have been automatically signed in.",
+                className: 'bg-green-600 text-white'
+              });
+              
+              // Redirect to dashboard after successful login
+              setTimeout(() => {
+                router.push('/dashboard');
+              }, 2000);
+            } catch (loginError) {
+              console.error('Auto login failed:', loginError);
+              toast({
+                title: "Account Created!",
+                description: "Please log in with your email and password to access your dashboard.",
+                className: 'bg-blue-600 text-white'
+              });
+              
+              // If auto login fails, redirect to login page
+              setTimeout(() => {
+                router.push('/login?verified=true');
+              }, 2000);
+            }
+          } else {
+            // No password available, redirect to login
+            toast({
+              title: "Account Created!",
+              description: "Please log in with your email and password to access your dashboard.",
+              className: 'bg-blue-600 text-white'
+            });
+            
+            setTimeout(() => {
+              router.push('/login?verified=true');
+            }, 2000);
+          }
         } else {
           setVerificationStatus('error');
           setMessage(data.error || 'Verification failed');
@@ -115,10 +152,10 @@ function VerifyEmailForm() {
           {verificationStatus === 'success' && (
             <div className="space-y-4">
               <p className="text-sm text-muted-foreground">
-                Redirecting to set your password...
+                Signing you in and redirecting to dashboard...
               </p>
               <Button asChild className="w-full">
-                <Link href={`/set-password?email=${encodeURIComponent(message.split(' ')[0])}`}>Set Password</Link>
+                <Link href="/dashboard">Go to Dashboard</Link>
               </Button>
             </div>
           )}

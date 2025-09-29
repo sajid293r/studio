@@ -155,7 +155,7 @@ export class EmailService {
       to: email,
       subject: 'Welcome to Stay Verify! 🎉',
       template: WelcomeEmailTemplate,
-      data: { name },
+      data: { name, email },
     });
   }
 

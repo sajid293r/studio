@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { doc, getDoc, updateDoc, collection, query, where, getDocs } from 'firebase/firestore';
+import { createUserWithEmailAndPassword } from 'firebase/auth';
 import { db, auth } from '@/lib/firebase';
 import { emailService } from '@/lib/email-service';
 import crypto from 'crypto';
@@ -62,15 +63,54 @@ async function verifyEmailToken(token: string) {
     consumedAt: new Date(),
   });
   
-  // Mark user as verified (Firebase Auth user will be created on first login)
-  const userRef = doc(db, 'users', verificationData.userId);
-  await updateDoc(userRef, {
-    emailVerified: true,
-    emailVerifiedAt: new Date(),
-    verificationStatus: 'verified',
-  });
-  
-  console.log('Email verified successfully for user:', verificationData.userId);
+  // Create Firebase Auth user directly after verification
+  let firebaseUser;
+  try {
+    const userCredential = await createUserWithEmailAndPassword(
+      auth, 
+      verificationData.email, 
+      verificationData.password || 'temp_password_123' // Use stored password or temp
+    );
+    firebaseUser = userCredential.user;
+    
+    // Update user profile with real Firebase UID and mark as verified
+    const userRef = doc(db, 'users', verificationData.userId);
+    await updateDoc(userRef, {
+      uid: firebaseUser.uid, // Update with real Firebase UID
+      emailVerified: true,
+      emailVerifiedAt: new Date(),
+      firebaseAuthCreated: true,
+    });
+    
+    console.log('Firebase Auth user created:', firebaseUser.uid);
+    
+  } catch (authError: any) {
+    console.error('Failed to create Firebase Auth user:', authError);
+    
+    // Handle specific Firebase Auth errors
+    if (authError.code === 'auth/email-already-in-use') {
+      console.log('User already exists in Firebase Auth, marking as verified');
+      
+      // Mark as verified without creating new Firebase Auth user
+      const userRef = doc(db, 'users', verificationData.userId);
+      await updateDoc(userRef, {
+        emailVerified: true,
+        emailVerifiedAt: new Date(),
+        firebaseAuthLinked: true,
+        firebaseAuthNote: 'User already exists in Firebase Auth',
+      });
+      
+      console.log('Email verified for existing Firebase Auth user');
+    } else {
+      // Still mark as verified even if Firebase Auth creation fails
+      const userRef = doc(db, 'users', verificationData.userId);
+      await updateDoc(userRef, {
+        emailVerified: true,
+        emailVerifiedAt: new Date(),
+        firebaseAuthError: authError instanceof Error ? authError.message : 'Unknown error',
+      });
+    }
+  }
   
   // Emit domain event UserVerified (log for now)
   console.log('Domain event: UserVerified', {
@@ -93,14 +133,15 @@ async function verifyEmailToken(token: string) {
   
   return NextResponse.json({
     success: true,
-    message: 'Email verified successfully! Please set your password to complete your account setup.',
+    message: 'Email verified successfully! Your account is now active.',
     user: {
       email: verificationData.email,
       name: verificationData.name,
       emailVerified: true,
       emailVerifiedAt: new Date(),
     },
-    redirectTo: '/set-password'
+    password: verificationData.password, // Return password for auto login
+    redirectTo: '/dashboard'
   });
 }
 
