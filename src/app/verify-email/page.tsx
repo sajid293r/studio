@@ -49,10 +49,10 @@ function VerifyEmailForm() {
             className: 'bg-green-600 text-white'
           });
           
-          // Redirect to dashboard after 3 seconds
+          // Redirect to set password page after 2 seconds
           setTimeout(() => {
-            router.push('/dashboard');
-          }, 3000);
+            router.push(`/set-password?email=${encodeURIComponent(data.user.email)}`);
+          }, 2000);
         } else {
           setVerificationStatus('error');
           setMessage(data.error || 'Verification failed');
@@ -115,10 +115,10 @@ function VerifyEmailForm() {
           {verificationStatus === 'success' && (
             <div className="space-y-4">
               <p className="text-sm text-muted-foreground">
-                Redirecting to dashboard...
+                Redirecting to set your password...
               </p>
               <Button asChild className="w-full">
-                <Link href="/dashboard">Go to Dashboard</Link>
+                <Link href={`/set-password?email=${encodeURIComponent(message.split(' ')[0])}`}>Set Password</Link>
               </Button>
             </div>
           )}

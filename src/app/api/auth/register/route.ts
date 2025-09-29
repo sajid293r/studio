@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { emailService } from '@/lib/email-service';
-import { doc, setDoc, collection, addDoc } from 'firebase/firestore';
+import { doc, setDoc, collection, addDoc, query, where, getDocs } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import crypto from 'crypto';
 
@@ -17,6 +17,35 @@ export async function POST(req: NextRequest) {
     // Parse and validate request body
     const body = await req.json();
     const { email, password, displayName } = registerSchema.parse(body);
+    
+    // Check if email already exists in users collection
+    const usersQuery = query(
+      collection(db, 'users'),
+      where('email', '==', email)
+    );
+    const existingUsers = await getDocs(usersQuery);
+    
+    if (!existingUsers.empty) {
+      return NextResponse.json(
+        { error: 'An account with this email already exists. Please use a different email or try logging in.' },
+        { status: 400 }
+      );
+    }
+    
+    // Check if email already exists in email_verifications collection (pending verification)
+    const verificationQuery = query(
+      collection(db, 'email_verifications'),
+      where('email', '==', email),
+      where('consumedAt', '==', null) // Not yet consumed
+    );
+    const existingVerifications = await getDocs(verificationQuery);
+    
+    if (!existingVerifications.empty) {
+      return NextResponse.json(
+        { error: 'A verification email has already been sent to this address. Please check your email or try again later.' },
+        { status: 400 }
+      );
+    }
     
     // Generate 128-bit (16 bytes) verification token as per requirements
     const verificationToken = crypto.randomBytes(16).toString('hex');
