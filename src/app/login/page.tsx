@@ -15,12 +15,22 @@ import {
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useAuth } from "@/hooks/use-auth";
-import { LoaderCircle, ShieldCheck } from "lucide-react";
-import React, { useEffect } from "react";
+import { LoaderCircle, ShieldCheck, Mail, Lock } from "lucide-react";
+import React, { useEffect, useState } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { signInWithEmailAndPassword } from "firebase/auth";
+import { auth } from "@/lib/firebase";
 
+// Schema for password login
+const loginSchema = z.object({
+  email: z.string().email({ message: "Please enter a valid email address." }),
+  password: z.string().min(1, "Password is required"),
+});
+
+// Schema for magic link
 const emailSchema = z.object({
   email: z.string().email({ message: "Please enter a valid email address." }),
 });
@@ -47,10 +57,22 @@ const GoogleIcon = ({ className }: { className?: string }) => (
 );
 
 export default function LoginPage() {
-  const { user, userProfile, signInWithEmailLink, signInWithGoogle, loading } = useAuth();
+  const { user, userProfile, signInWithGoogle, loading } = useAuth();
   const { toast } = useToast();
+  const router = useRouter();
   const [isEmailSent, setIsEmailSent] = React.useState(false);
+  const [loginMethod, setLoginMethod] = useState<'password' | 'magiclink'>('password');
 
+  // Form for password login
+  const loginForm = useForm<z.infer<typeof loginSchema>>({
+    resolver: zodResolver(loginSchema),
+    defaultValues: {
+      email: "",
+      password: "",
+    },
+  });
+
+  // Form for magic link
   const form = useForm<z.infer<typeof emailSchema>>({
     resolver: zodResolver(emailSchema),
     defaultValues: {
@@ -64,7 +86,73 @@ export default function LoginPage() {
     }
   }, [user, userProfile]);
 
-  const onSubmit = async (values: z.infer<typeof emailSchema>) => {
+  // Password login handler
+  const onPasswordLogin = async (values: z.infer<typeof loginSchema>) => {
+    try {
+      // First, verify with backend API that user is verified
+      const verifyResponse = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          email: values.email,
+          password: values.password,
+        }),
+      });
+
+      const verifyData = await verifyResponse.json();
+
+      if (!verifyResponse.ok) {
+        // Show specific error from backend
+        toast({
+          variant: 'destructive',
+          title: 'Login Failed',
+          description: verifyData.error || 'Invalid email or password',
+        });
+        return;
+      }
+
+      // Backend verified user, now sign in with Firebase client-side
+      try {
+        await signInWithEmailAndPassword(auth, values.email, values.password);
+        
+        toast({
+          title: "Login Successful!",
+          description: "Welcome back!",
+          className: 'bg-green-600 text-white'
+        });
+        
+        // useAuth hook will handle redirect automatically
+      } catch (firebaseError: any) {
+        console.error("Firebase login error:", firebaseError);
+        
+        // Handle Firebase-specific errors
+        let errorMessage = 'Failed to sign in. Please try again.';
+        if (firebaseError.code === 'auth/wrong-password' || firebaseError.code === 'auth/user-not-found') {
+          errorMessage = 'Invalid email or password';
+        } else if (firebaseError.code === 'auth/too-many-requests') {
+          errorMessage = 'Too many failed attempts. Please try again later.';
+        }
+        
+        toast({
+          variant: 'destructive',
+          title: 'Login Failed',
+          description: errorMessage,
+        });
+      }
+    } catch (error) {
+      console.error("Login error:", error);
+      toast({
+        variant: "destructive",
+        title: "Login Failed",
+        description: "Failed to login. Please try again.",
+      });
+    }
+  };
+
+  // Magic link handler
+  const onMagicLinkSubmit = async (values: z.infer<typeof emailSchema>) => {
     try {
       // Use custom email service instead of Firebase's default
       const response = await fetch('/api/auth/send-custom-email-link', {
@@ -129,49 +217,138 @@ export default function LoginPage() {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          {isEmailSent ? (
-            <Alert className="mb-6">
-              <AlertTitle className="text-green-800 dark:text-green-200">Magic Link Sent!</AlertTitle>
-              <AlertDescription>
-                We've sent a magic link to your email. Click the link to sign in.
-              </AlertDescription>
-            </Alert>
-          ) : (
-            <Form {...form}>
-              <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-                <FormField
-                  control={form.control}
-                  name="email"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Email Address</FormLabel>
-                      <FormControl>
-                        <Input
-                          placeholder="Enter your email"
-                          type="email"
-                          {...field}
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <Button
-                  type="submit"
-                  className="w-full"
-                  disabled={form.formState.isSubmitting}
+          {loginMethod === 'password' ? (
+            <>
+              <Form {...loginForm}>
+                <form onSubmit={loginForm.handleSubmit(onPasswordLogin)} className="space-y-4">
+                  <FormField
+                    control={loginForm.control}
+                    name="email"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Email Address</FormLabel>
+                        <FormControl>
+                          <div className="relative">
+                            <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                            <Input
+                              placeholder="Enter your email"
+                              type="email"
+                              className="pl-10 h-11"
+                              {...field}
+                            />
+                          </div>
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={loginForm.control}
+                    name="password"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Password</FormLabel>
+                        <FormControl>
+                          <div className="relative">
+                            <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                            <Input
+                              placeholder="Enter your password"
+                              type="password"
+                              className="pl-10 h-11"
+                              {...field}
+                            />
+                          </div>
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <Button
+                    type="submit"
+                    className="w-full h-11 font-medium"
+                    disabled={loginForm.formState.isSubmitting}
+                  >
+                    {loginForm.formState.isSubmitting ? (
+                      <>
+                        <LoaderCircle className="mr-2 h-4 w-4 animate-spin" />
+                        Signing In...
+                      </>
+                    ) : (
+                      "Sign In"
+                    )}
+                  </Button>
+                </form>
+              </Form>
+
+              <div className="mt-4 text-center">
+                <button
+                  onClick={() => setLoginMethod('magiclink')}
+                  className="text-sm text-primary hover:underline"
                 >
-                  {form.formState.isSubmitting ? (
-                    <>
-                      <LoaderCircle className="mr-2 h-4 w-4 animate-spin" />
-                      Sending Link...
-                    </>
-                  ) : (
-                    "Send Magic Link"
-                  )}
-                </Button>
-              </form>
-            </Form>
+                  Use Magic Link instead
+                </button>
+              </div>
+            </>
+          ) : (
+            <>
+              {isEmailSent ? (
+                <Alert className="mb-6">
+                  <AlertTitle className="text-green-800 dark:text-green-200">Magic Link Sent!</AlertTitle>
+                  <AlertDescription>
+                    We've sent a magic link to your email. Click the link to sign in.
+                  </AlertDescription>
+                </Alert>
+              ) : (
+                <Form {...form}>
+                  <form onSubmit={form.handleSubmit(onMagicLinkSubmit)} className="space-y-4">
+                    <FormField
+                      control={form.control}
+                      name="email"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Email Address</FormLabel>
+                          <FormControl>
+                            <div className="relative">
+                              <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                              <Input
+                                placeholder="Enter your email"
+                                type="email"
+                                className="pl-10 h-11"
+                                {...field}
+                              />
+                            </div>
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <Button
+                      type="submit"
+                      className="w-full h-11 font-medium"
+                      disabled={form.formState.isSubmitting}
+                    >
+                      {form.formState.isSubmitting ? (
+                        <>
+                          <LoaderCircle className="mr-2 h-4 w-4 animate-spin" />
+                          Sending Link...
+                        </>
+                      ) : (
+                        "Send Magic Link"
+                      )}
+                    </Button>
+                  </form>
+                </Form>
+              )}
+
+              <div className="mt-4 text-center">
+                <button
+                  onClick={() => setLoginMethod('password')}
+                  className="text-sm text-primary hover:underline"
+                >
+                  Use Password instead
+                </button>
+              </div>
+            </>
           )}
 
           <div className="relative my-6">

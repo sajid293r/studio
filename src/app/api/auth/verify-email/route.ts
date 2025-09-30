@@ -66,6 +66,18 @@ async function verifyEmailToken(token: string) {
   // Create Firebase Auth user directly after verification
   let firebaseUser;
   try {
+    // Get the existing user document to check passwordHash
+    const userRef = doc(db, 'users', verificationData.userId);
+    const userSnapshot = await getDoc(userRef);
+    const existingUserData = userSnapshot.data();
+    
+    console.log('Before verification - User data:', {
+      userId: verificationData.userId,
+      email: verificationData.email,
+      hasPasswordHash: !!existingUserData?.passwordHash,
+      passwordHashPreview: existingUserData?.passwordHash ? existingUserData.passwordHash.substring(0, 10) + '...' : 'MISSING',
+    });
+    
     const userCredential = await createUserWithEmailAndPassword(
       auth, 
       verificationData.email, 
@@ -74,7 +86,7 @@ async function verifyEmailToken(token: string) {
     firebaseUser = userCredential.user;
     
     // Update user profile with real Firebase UID and mark as verified
-    const userRef = doc(db, 'users', verificationData.userId);
+    // IMPORTANT: Only update specific fields, keeping passwordHash intact
     await updateDoc(userRef, {
       uid: firebaseUser.uid, // Update with real Firebase UID
       emailVerified: true,
@@ -83,6 +95,7 @@ async function verifyEmailToken(token: string) {
     });
     
     console.log('Firebase Auth user created:', firebaseUser.uid);
+    console.log('After verification - passwordHash should still be preserved in Firestore');
     
   } catch (authError: any) {
     console.error('Failed to create Firebase Auth user:', authError);

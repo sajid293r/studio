@@ -54,25 +54,63 @@ async function sendEmail(to: string, subject: string, html: string) {
   }
 }
 
-async function sendWelcomeEmail(customerEmail: string, customerName: string) {
-    const subject = "Welcome to Stay Verify! Your property is ready.";
-    const htmlBody = `
-        <h1>Welcome, ${customerName}!</h1>
-        <p>Thank you for subscribing to Stay Verify. We're excited to have you on board.</p>
-        <p>We have created an account for you with the email: <strong>${customerEmail}</strong>.</p>
-        <p>To access your dashboard and set your password, please use the "Forgot Password" option on our login page with your email address.</p>
-        <p>
-            <a href="${process.env.NEXT_PUBLIC_APP_URL}/login" style="background-color: #2563EB; color: white; padding: 10px 15px; text-decoration: none; border-radius: 5px;">
-                Go to Login Page
-            </a>
-        </p>
-        <p>Once you log in, you can start creating guest submission links from your dashboard.</p>
-        <p>If you have any questions, feel free to reply to this email.</p>
-        <br/>
-        <p>Best regards,</p>
-        <p>The Stay Verify Team</p>
-    `;
-    await sendEmail(customerEmail, subject, htmlBody);
+async function sendSubscriptionWelcomeEmail(
+  customerEmail: string, 
+  customerName: string, 
+  propertyName: string, 
+  planName: string
+) {
+  const subject = `Welcome to ${planName} - ${propertyName}`;
+  const htmlBody = `
+    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+      <h1 style="color: #2563EB;">You're In! 🎉</h1>
+      <p>Hi ${customerName},</p>
+      <p>Thank you for subscribing to <strong>${planName}</strong> for <strong>${propertyName}</strong>.</p>
+      
+      <div style="background-color: #f3f4f6; padding: 15px; border-radius: 8px; margin: 20px 0;">
+        <h3 style="margin-top: 0;">Your Plan Details</h3>
+        <ul style="list-style: none; padding: 0;">
+          <li><strong>Property:</strong> ${propertyName}</li>
+          <li><strong>Plan:</strong> ${planName}</li>
+        </ul>
+      </div>
+
+      <h3>Get Started with Property Configuration</h3>
+      <p>Follow these steps to configure your property:</p>
+      <ol>
+        <li><strong>Add Property Details</strong> - Complete your property information</li>
+        <li><strong>Set Up Rooms</strong> - Add room types and rates</li>
+        <li><strong>Configure Tax Settings</strong> - Set up applicable taxes</li>
+        <li><strong>Integration Setup</strong> - Connect your channel manager or PMS</li>
+        <li><strong>Create Submission Links</strong> - Start collecting guest information</li>
+      </ol>
+
+      <div style="text-align: center; margin: 30px 0;">
+        <a href="${process.env.NEXT_PUBLIC_APP_URL}/dashboard" 
+           style="background-color: #2563EB; color: white; padding: 12px 24px; 
+                  text-decoration: none; border-radius: 6px; display: inline-block;">
+          Go to Dashboard
+        </a>
+      </div>
+
+      <div style="background-color: #fef3c7; padding: 15px; border-radius: 8px; margin: 20px 0;">
+        <p style="margin: 0;"><strong>📚 Resources:</strong></p>
+        <ul style="margin: 10px 0;">
+          <li><a href="${process.env.NEXT_PUBLIC_APP_URL}/docs">Documentation</a></li>
+          <li><a href="${process.env.NEXT_PUBLIC_APP_URL}/video-walkthrough">Video Walkthrough</a></li>
+          <li><a href="${process.env.NEXT_PUBLIC_APP_URL}/support">Support Center</a></li>
+        </ul>
+      </div>
+
+      <p>Need help? Just reply to this email and we'll be happy to assist!</p>
+      
+      <p style="margin-top: 30px;">
+        Best regards,<br/>
+        <strong>The Stay Verify Team</strong>
+      </p>
+    </div>
+  `;
+  await sendEmail(customerEmail, subject, htmlBody);
 }
 
 async function sendInvoiceEmail(invoiceDetails: any) {
@@ -172,7 +210,8 @@ export async function POST(req: Request) {
         };
         await createUserProfile(newUserId, newUserProfileData);
         userId = newUserId;
-        await sendWelcomeEmail(customerEmail, customerName);
+        // Send subscription welcome email with setup instructions
+        await sendSubscriptionWelcomeEmail(customerEmail, customerName, propertyName || 'Your Property', planName);
         // Note: For non-auth users, sending a password reset won't work directly.
         // The welcome email instructs them to use the "forgot password" flow, which implies a user should be created in Firebase Auth.
         // For a full implementation, you'd create the user in Firebase Auth here.

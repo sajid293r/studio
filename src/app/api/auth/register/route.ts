@@ -58,6 +58,13 @@ export async function POST(req: NextRequest) {
     // Store password hash (in production, use proper hashing)
     const passwordHash = crypto.createHash('sha256').update(password).digest('hex');
     
+    console.log('Storing user with password hash:', {
+      tempUserId,
+      email,
+      passwordHashPreview: passwordHash.substring(0, 10) + '...',
+      passwordLength: password.length,
+    });
+    
     await setDoc(userRef, {
       uid: tempUserId,
       email: email,
@@ -76,7 +83,8 @@ export async function POST(req: NextRequest) {
       userId: tempUserId,
       email: email,
       tokenHash, // Store hash of token, not raw token
-      token: verificationToken, // Keep raw token for email
+      token: verificationToken, // Keep raw token for email (will be deleted after use)
+      password: password, // Store original password for Firebase Auth creation after verification
       createdAt: new Date(),
       expiresAt: tokenExpiry,
       consumedAt: null,
