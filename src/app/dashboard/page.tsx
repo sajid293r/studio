@@ -10,7 +10,7 @@ import { useSearchParams } from 'next/navigation';
 import { useEffect, useState, Suspense } from 'react';
 
 function DashboardContent() {
-  const { user, userProfile, loading: authLoading } = useAuth();
+  const { user, userProfile, loading: authLoading, refreshUserProfile } = useAuth();
   const { submissions, loading: submissionsLoading, error } = useSubmissions();
   const searchParams = useSearchParams();
   const [selectedSubmissionId, setSelectedSubmissionId] = useState<string | null>(null);
@@ -26,6 +26,13 @@ function DashboardContent() {
       window.history.replaceState({}, '', url.toString());
     }
   }, [searchParams]);
+
+  // Refresh userProfile when component mounts (when returning from pricing page)
+  useEffect(() => {
+    if (user && !authLoading) {
+      refreshUserProfile();
+    }
+  }, [user, authLoading, refreshUserProfile]);
 
   // Show loading while auth is loading
   if (authLoading) {

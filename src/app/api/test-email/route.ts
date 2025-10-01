@@ -12,39 +12,34 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    console.log('Testing email service with:', email);
-    
-    // Test verification email
-    const result = await emailService.sendEmailVerification({
-      email: email,
+    console.log('Testing email connection for:', email);
+
+    // Test with a simple magic link email
+    const result = await emailService.sendMagicLink({
+      email,
       name: 'Test User',
-      verificationToken: 'test-token-123',
+      magicLink: 'https://stayverify.com/verify-magic-link?token=test123&email=' + encodeURIComponent(email),
     });
 
     if (result.success) {
+      console.log('Email test successful:', result.messageId);
       return NextResponse.json({
         success: true,
-        message: 'Test email sent successfully!',
+        message: 'Email sent successfully',
         messageId: result.messageId,
       });
     } else {
+      console.error('Email test failed:', result.error);
       return NextResponse.json(
-        { 
-          success: false, 
-          error: 'Failed to send test email',
-          details: result.error 
-        },
+        { error: result.error },
         { status: 500 }
       );
     }
-  } catch (error) {
-    console.error('Test email error:', error);
+
+  } catch (error: any) {
+    console.error('Email test error:', error);
     return NextResponse.json(
-      { 
-        success: false, 
-        error: 'Test email failed',
-        details: error instanceof Error ? error.message : 'Unknown error'
-      },
+      { error: error.message || 'Email test failed' },
       { status: 500 }
     );
   }

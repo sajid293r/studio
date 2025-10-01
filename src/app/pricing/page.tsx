@@ -73,15 +73,41 @@ function PricingClient() {
     const [selectedPlan, setSelectedPlan] = React.useState<(typeof plans)[0] | null>(null);
     const [isLoading, setIsLoading] = React.useState(false);
     const [paymentSuccess, setPaymentSuccess] = React.useState(false);
+    const [propertyData, setPropertyData] = React.useState<any>(null);
 
     const form = useForm<z.infer<typeof checkoutSchema>>({
         resolver: zodResolver(checkoutSchema),
     });
 
+    // Fetch property data by ID
+    const fetchPropertyData = async (propertyId: string) => {
+        try {
+            const response = await fetch(`/api/properties/${propertyId}`);
+            if (response.ok) {
+                const property = await response.json();
+                setPropertyData(property);
+                console.log('Fetched property data:', property);
+                
+                // Auto-fill form with property data
+                if (property.name) form.setValue('propertyName', property.name);
+                if (property.address) form.setValue('propertyAddress', property.address);
+                if (property.contactPhone) form.setValue('propertyContact', property.contactPhone);
+            } else {
+                console.error('Failed to fetch property data');
+            }
+        } catch (error) {
+            console.error('Error fetching property data:', error);
+        }
+    };
+
     useEffect(() => {
         const planId = searchParams.get('planId');
         const propertyId = searchParams.get('propertyId');
-        const propertyName = searchParams.get('propertyName');
+
+        console.log('URL Parameters received:', {
+            planId,
+            propertyId
+        });
 
         if (planId) {
             const preselectedPlan = plans.find(p => p.priceId === planId);
@@ -89,8 +115,20 @@ function PricingClient() {
                 setSelectedPlan(preselectedPlan);
             }
         }
-        if (propertyName) {
-            form.setValue('propertyName', propertyName);
+
+        // Fetch property data if propertyId is provided
+        if (propertyId) {
+            fetchPropertyData(propertyId);
+        }
+
+        // Auto-fill user information from userProfile
+        if (userProfile) {
+            if (userProfile.displayName) {
+                form.setValue('name', userProfile.displayName);
+            }
+            if (userProfile.email) {
+                form.setValue('email', userProfile.email);
+            }
         }
 
         const paymentStatus = searchParams.get('payment');
@@ -109,7 +147,7 @@ function PricingClient() {
                 description: 'Your payment was cancelled. You can try again anytime.',
             });
         }
-    }, [searchParams, toast, form]);
+    }, [searchParams, toast, form, userProfile]);
 
     const handleSelectPlan = (plan: typeof plans[0]) => {
         setSelectedPlan(plan);

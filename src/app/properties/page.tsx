@@ -211,7 +211,7 @@ export default function PropertiesPage() {
   }
 
   const handleActivate = (property: Property) => {
-    router.push(`/pricing?propertyId=${property.id}&propertyName=${encodeURIComponent(property.name)}`);
+    router.push(`/pricing?propertyId=${property.id}`);
   };
 
 

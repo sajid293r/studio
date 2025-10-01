@@ -16,11 +16,11 @@ import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useAuth } from "@/hooks/use-auth";
 import { LoaderCircle, ShieldCheck, Mail, Lock } from "lucide-react";
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, Suspense } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { signInWithEmailAndPassword } from "firebase/auth";
 import { auth } from "@/lib/firebase";
 
@@ -31,8 +31,8 @@ const loginSchema = z.object({
 });
 
 // Schema for magic link
-const emailSchema = z.object({
-  email: z.string().email({ message: "Please enter a valid email address." }),
+const magicLinkSchema = z.object({
+  magicLinkEmail: z.string().email({ message: "Please enter a valid email address." }),
 });
 
 const GoogleIcon = ({ className }: { className?: string }) => (
@@ -56,27 +56,33 @@ const GoogleIcon = ({ className }: { className?: string }) => (
   </svg>
 );
 
-export default function LoginPage() {
+// Component that uses useSearchParams - needs to be wrapped in Suspense
+function LoginPageContent() {
   const { user, userProfile, signInWithGoogle, loading } = useAuth();
   const { toast } = useToast();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [isEmailSent, setIsEmailSent] = React.useState(false);
   const [loginMethod, setLoginMethod] = useState<'password' | 'magiclink'>('password');
+
+  // Get email from URL params if coming from magic link verification
+  const emailFromUrl = searchParams.get('email');
+  const isVerified = searchParams.get('verified') === 'true';
 
   // Form for password login
   const loginForm = useForm<z.infer<typeof loginSchema>>({
     resolver: zodResolver(loginSchema),
     defaultValues: {
-      email: "",
+      email: emailFromUrl || "",
       password: "",
     },
   });
 
-  // Form for magic link
-  const form = useForm<z.infer<typeof emailSchema>>({
-    resolver: zodResolver(emailSchema),
+  // Form for magic link - separate from password form
+  const magicLinkForm = useForm<z.infer<typeof magicLinkSchema>>({
+    resolver: zodResolver(magicLinkSchema),
     defaultValues: {
-      email: "",
+      magicLinkEmail: emailFromUrl || "",
     },
   });
 
@@ -85,6 +91,25 @@ export default function LoginPage() {
       window.location.href = "/dashboard";
     }
   }, [user, userProfile]);
+
+  // Show success message if coming from magic link verification
+  useEffect(() => {
+    if (isVerified && emailFromUrl) {
+      toast({
+        title: "Magic Link Verified!",
+        description: "Please set your password to complete the sign-in process.",
+        className: 'bg-green-600 text-white'
+      });
+    }
+  }, [isVerified, emailFromUrl, toast]);
+
+  // Handle email pre-filling only once on component mount
+  useEffect(() => {
+    if (emailFromUrl) {
+      loginForm.setValue('email', emailFromUrl);
+      magicLinkForm.setValue('magicLinkEmail', emailFromUrl);
+    }
+  }, []); // Empty dependency array - only run once on mount
 
   // Password login handler
   const onPasswordLogin = async (values: z.infer<typeof loginSchema>) => {
@@ -152,15 +177,20 @@ export default function LoginPage() {
   };
 
   // Magic link handler
-  const onMagicLinkSubmit = async (values: z.infer<typeof emailSchema>) => {
+  const onMagicLinkSubmit = async (values: z.infer<typeof magicLinkSchema>) => {
     try {
-      // Use custom email service instead of Firebase's default
+      // Store email in localStorage for Firebase magic link completion
+      if (typeof window !== 'undefined') {
+        window.localStorage.setItem('emailForSignIn', values.magicLinkEmail);
+      }
+
+      // Send magic link request
       const response = await fetch('/api/auth/send-custom-email-link', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ email: values.email }),
+        body: JSON.stringify({ email: values.magicLinkEmail }),
       });
 
       if (!response.ok) {
@@ -174,11 +204,11 @@ export default function LoginPage() {
         description: "Check your email for the login link.",
       });
     } catch (error) {
-      console.error("Login error:", error);
+      console.error("Magic link error:", error);
       toast({
         variant: "destructive",
-        title: "Login Failed",
-        description: "Failed to send magic link. Please try again.",
+        title: "Failed to Send Magic Link",
+        description: error instanceof Error ? error.message : "Failed to send magic link. Please try again.",
       });
     }
   };
@@ -219,7 +249,7 @@ export default function LoginPage() {
         <CardContent>
           {loginMethod === 'password' ? (
             <>
-              <Form {...loginForm}>
+              <Form {...loginForm} key="password-form">
                 <form onSubmit={loginForm.handleSubmit(onPasswordLogin)} className="space-y-4">
                   <FormField
                     control={loginForm.control}
@@ -282,7 +312,10 @@ export default function LoginPage() {
 
               <div className="mt-4 text-center">
                 <button
-                  onClick={() => setLoginMethod('magiclink')}
+                  onClick={() => {
+                    setLoginMethod('magiclink');
+                    setIsEmailSent(false);
+                  }}
                   className="text-sm text-primary hover:underline"
                 >
                   Use Magic Link instead
@@ -294,24 +327,34 @@ export default function LoginPage() {
               {isEmailSent ? (
                 <Alert className="mb-6">
                   <AlertTitle className="text-green-800 dark:text-green-200">Magic Link Sent!</AlertTitle>
-                  <AlertDescription>
+                  <AlertDescription className="mb-4">
                     We've sent a magic link to your email. Click the link to sign in.
                   </AlertDescription>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      setIsEmailSent(false);
+                      magicLinkForm.reset();
+                    }}
+                  >
+                    Try Again
+                  </Button>
                 </Alert>
               ) : (
-                <Form {...form}>
-                  <form onSubmit={form.handleSubmit(onMagicLinkSubmit)} className="space-y-4">
+                <Form {...magicLinkForm} key="magic-link-form">
+                  <form onSubmit={magicLinkForm.handleSubmit(onMagicLinkSubmit)} className="space-y-4">
                     <FormField
-                      control={form.control}
-                      name="email"
+                      control={magicLinkForm.control}
+                      name="magicLinkEmail"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel>Email Address</FormLabel>
+                          <FormLabel>Email Address for Magic Link</FormLabel>
                           <FormControl>
                             <div className="relative">
                               <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                               <Input
-                                placeholder="Enter your email"
+                                placeholder="Enter email for magic link"
                                 type="email"
                                 className="pl-10 h-11"
                                 {...field}
@@ -325,9 +368,9 @@ export default function LoginPage() {
                     <Button
                       type="submit"
                       className="w-full h-11 font-medium"
-                      disabled={form.formState.isSubmitting}
+                      disabled={magicLinkForm.formState.isSubmitting}
                     >
-                      {form.formState.isSubmitting ? (
+                      {magicLinkForm.formState.isSubmitting ? (
                         <>
                           <LoaderCircle className="mr-2 h-4 w-4 animate-spin" />
                           Sending Link...
@@ -342,7 +385,10 @@ export default function LoginPage() {
 
               <div className="mt-4 text-center">
                 <button
-                  onClick={() => setLoginMethod('password')}
+                  onClick={() => {
+                    setLoginMethod('password');
+                    setIsEmailSent(false);
+                  }}
                   className="text-sm text-primary hover:underline"
                 >
                   Use Password instead
@@ -383,5 +429,21 @@ export default function LoginPage() {
         </CardContent>
       </Card>
     </div>
+  );
+}
+
+// Main component with Suspense boundary
+export default function LoginPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="flex items-center space-x-2">
+          <LoaderCircle className="h-4 w-4 animate-spin" />
+          <span>Loading...</span>
+        </div>
+      </div>
+    }>
+      <LoginPageContent />
+    </Suspense>
   );
 }

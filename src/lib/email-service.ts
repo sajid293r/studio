@@ -17,12 +17,18 @@ import nodemailer from 'nodemailer';
 const createEmailTransporter = () => {
   return nodemailer.createTransport({
     host: process.env.SMTP_HOST || 'smtp.gmail.com',
-    port: parseInt(process.env.SMTP_PORT || '465'),
-    secure: true, // SSL for port 465
+    port: parseInt(process.env.SMTP_PORT || '587'), // Use port 587 for TLS
+    secure: false, // Use TLS instead of SSL
     auth: {
       user: process.env.SMTP_USER || 'stayverifed@gmail.com',
       pass: process.env.SMTP_PASS || 'kdwpcrvswkfkvsbv', // Replace with actual app password
     },
+    tls: {
+      rejectUnauthorized: false, // Allow self-signed certificates
+    },
+    connectionTimeout: 10000, // 10 seconds
+    greetingTimeout: 5000, // 5 seconds
+    socketTimeout: 10000, // 10 seconds
   });
 };
 
@@ -42,24 +48,45 @@ export class EmailService {
     template: React.ComponentType<any>;
     data?: any;
   }) {
-    try {
-      const html = render(React.createElement(template, data));
-      
-      const mailOptions = {
-        from: emailTemplates.from,
-        replyTo: emailTemplates.replyTo,
-        to: Array.isArray(to) ? to.join(', ') : to,
-        subject,
-        html,
-      };
+    const maxRetries = 3;
+    let lastError;
+    
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+      try {
+        console.log(`Email sending attempt ${attempt}/${maxRetries} for ${Array.isArray(to) ? to.join(', ') : to}`);
+        
+        // Recreate transporter on retry to ensure fresh connection
+        if (attempt > 1) {
+          this.transporter = createEmailTransporter();
+          // Wait a bit before retry
+          await new Promise(resolve => setTimeout(resolve, 1000 * attempt));
+        }
+        
+        const html = render(React.createElement(template, data));
+        
+        const mailOptions = {
+          from: emailTemplates.from,
+          replyTo: emailTemplates.replyTo,
+          to: Array.isArray(to) ? to.join(', ') : to,
+          subject,
+          html,
+        };
 
-      const result = await this.transporter.sendMail(mailOptions);
-      console.log('Email sent successfully:', result.messageId);
-      return { success: true, messageId: result.messageId };
-    } catch (error) {
-      console.error('Email sending failed:', error);
-      return { success: false, error: error instanceof Error ? error.message : 'Unknown error' };
+        const result = await this.transporter.sendMail(mailOptions);
+        console.log('Email sent successfully:', result.messageId);
+        return { success: true, messageId: result.messageId };
+      } catch (error) {
+        lastError = error;
+        console.error(`Email sending attempt ${attempt} failed:`, error);
+        
+        if (attempt === maxRetries) {
+          console.error('All email sending attempts failed');
+          return { success: false, error: lastError instanceof Error ? lastError.message : 'Unknown error' };
+        }
+      }
     }
+    
+    return { success: false, error: 'Max retries exceeded' };
   }
 
   // Send contact form email

@@ -49,6 +49,7 @@ interface AuthContextType {
   signInWithEmailLink: (email: string) => Promise<void>;
   signInWithGoogle: () => Promise<void>;
   logout: () => Promise<void>;
+  refreshUserProfile: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType>({
@@ -58,6 +59,7 @@ const AuthContext = createContext<AuthContextType>({
   signInWithEmailLink: async () => {},
   signInWithGoogle: async () => {},
   logout: async () => {},
+  refreshUserProfile: async () => {},
 });
 
 export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
@@ -290,6 +292,21 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     }
   };
 
+  const refreshUserProfile = async () => {
+    if (!user) return;
+    
+    try {
+      console.log('Refreshing user profile...');
+      const profile = await apiGetUserProfile(user.uid);
+      if (profile) {
+        setUserProfile(profile);
+        console.log('User profile refreshed:', profile.email);
+      }
+    } catch (error) {
+      console.error('Error refreshing user profile:', error);
+    }
+  };
+
   const logout = async () => {
     try {
       setLoading(true);
@@ -328,7 +345,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
   return (
     <AuthContext.Provider
-      value={{ user, userProfile, loading, signInWithEmailLink, signInWithGoogle, logout }}
+      value={{ user, userProfile, loading, signInWithEmailLink, signInWithGoogle, logout, refreshUserProfile }}
     >
       {children}
     </AuthContext.Provider>

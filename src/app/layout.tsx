@@ -3,6 +3,7 @@ import type {Metadata} from 'next';
 import './globals.css';
 import { Toaster } from "@/components/ui/toaster"
 import { AuthProvider } from '@/hooks/use-auth';
+import '@/lib/cleanup-scheduler'; // Start cleanup scheduler
 
 export const metadata: Metadata = {
   title: 'Stay Verify | Automated Guest ID Verification for Hotels',

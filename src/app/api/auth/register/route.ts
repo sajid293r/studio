@@ -16,16 +16,23 @@ export async function POST(req: NextRequest) {
   try {
     // Parse and validate request body
     const body = await req.json();
+    console.log('Registration request body:', body);
+    
     const { email, password, displayName } = registerSchema.parse(body);
+    console.log('Registration data parsed successfully:', { email, displayName, passwordLength: password.length });
     
     // Check if email already exists in users collection
+    console.log('Checking if email exists in users collection...');
     const usersQuery = query(
       collection(db, 'users'),
       where('email', '==', email)
     );
     const existingUsers = await getDocs(usersQuery);
     
+    console.log('Existing users found:', existingUsers.size);
+    
     if (!existingUsers.empty) {
+      console.log('Email already exists in users collection');
       return NextResponse.json(
         { error: 'An account with this email already exists. Please use a different email or try logging in.' },
         { status: 400 }
@@ -33,6 +40,7 @@ export async function POST(req: NextRequest) {
     }
     
     // Check if email already exists in email_verifications collection (pending verification)
+    console.log('Checking if email has pending verification...');
     const verificationQuery = query(
       collection(db, 'email_verifications'),
       where('email', '==', email),
@@ -40,7 +48,10 @@ export async function POST(req: NextRequest) {
     );
     const existingVerifications = await getDocs(verificationQuery);
     
+    console.log('Existing verifications found:', existingVerifications.size);
+    
     if (!existingVerifications.empty) {
+      console.log('Email has pending verification');
       return NextResponse.json(
         { error: 'A verification email has already been sent to this address. Please check your email or try again later.' },
         { status: 400 }
@@ -101,6 +112,7 @@ export async function POST(req: NextRequest) {
     });
     
     // Send verification email with proper URL
+    console.log('Sending verification email...');
     const verificationUrl = `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/verify-email?token=${verificationToken}`;
     
     const emailResult = await emailService.sendEmailVerification({
@@ -115,6 +127,8 @@ export async function POST(req: NextRequest) {
     } else {
       console.log('Verification email sent successfully:', emailResult.messageId);
     }
+    
+    console.log('Registration completed successfully');
     
     return NextResponse.json({
       success: true,
@@ -132,6 +146,7 @@ export async function POST(req: NextRequest) {
     console.error('Registration error:', error);
     
     if (error instanceof z.ZodError) {
+      console.log('Zod validation errors:', error.errors);
       return NextResponse.json(
         { error: 'Invalid registration data', details: error.errors },
         { status: 400 }
